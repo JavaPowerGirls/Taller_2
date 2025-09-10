@@ -1,12 +1,20 @@
 package com.ntt.loan.model;
 
-import lombok.*;
+import lombok.Data;
+
+import java.time.LocalDate;
+import java.util.List;
+
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class LoanValidation {
-    private boolean valid;
-    private String message;
+
+    private boolean eligible;
+    private List<LoanValidationReason> reasons;
+    private Double monthlyPayment;
+    private Double monthlySalary;
+    private Double requestedAmount;
+    private Integer termMonths;
+    private LocalDate lastLoanDate;
+    private LocalDate validationDate;
 }
