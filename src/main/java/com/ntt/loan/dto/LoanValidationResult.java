@@ -10,4 +10,7 @@ public class LoanValidationResult {
     private boolean eligible;
     private List<String> reasons;
     private BigDecimal monthlyPayment;
+
+    public LoanValidationResult(boolean b, String loanApproved) {
+    }
 }

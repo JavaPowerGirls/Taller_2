@@ -3,14 +3,11 @@ package com.ntt.loan.controller;
 import com.ntt.loan.dto.LoanValidationRequest;
 import com.ntt.loan.dto.LoanValidationResult;
 import com.ntt.loan.service.LoanValidationService;
-import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
-import java.util.Objects;
-
 @RestController
-@RequestMapping("/api/v1/loans")
+@RequestMapping(value = "/api/v1/loans")
 
 public class LoanValidationController {
 
@@ -23,7 +20,7 @@ public class LoanValidationController {
     //implementar el post "loan-validation" recibe  @RequestBody loanvalidationrequest por parametro
 
     @PostMapping("/validate")
-    public Mono<LoanValidationResult> validateLoan(@Valid @RequestBody LoanValidationRequest request) {
-        return Mono.just(Objects.requireNonNull(loanValidationService.validateLoan(request).block()));
+    public Mono<LoanValidationResult> validateLoan(@RequestBody LoanValidationRequest request) {
+        return loanValidationService.validateLoan(request);
     }
 }
