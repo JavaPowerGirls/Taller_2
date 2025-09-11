@@ -1,14 +1,18 @@
 package com.ntt.loan.dto;
 
-import lombok.Data;
+import jakarta.validation.constraints.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
-@Data
-public class LoanValidationRequest {
-    private BigDecimal monthlySalary;
-    private BigDecimal requestedAmount;
-    private Integer termMonths;
-    private LocalDate lastLoanDate;
-}
+public record LoanValidationRequest(
+    @NotNull(message = "Monthly salary is required")
+    Double monthlySalary,
+    
+    @NotNull(message = "Requested amount is required") 
+    Double requestedAmount,
+    
+    @NotNull(message = "Term months is required")
+    Integer termMonths,
+    
+    LocalDate lastLoanDate
+) {}
