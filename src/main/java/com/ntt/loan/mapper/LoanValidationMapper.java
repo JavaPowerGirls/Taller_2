@@ -40,8 +40,8 @@ public class LoanValidationMapper {
         
         return new LoanValidationResult(
             model.isEligible(),
-            reasonStrings,
-            model.getMonthlyPayment()
+            model.isEligible() ? Collections.emptyList() : reasonStrings,
+            model.isEligible() ? model.getMonthlyPayment() : null
         );
     }
 }
