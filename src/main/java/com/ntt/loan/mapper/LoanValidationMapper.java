@@ -3,7 +3,6 @@ package com.ntt.loan.mapper;
 import com.ntt.loan.dto.LoanValidationRequest;
 import com.ntt.loan.dto.LoanValidationResult;
 import com.ntt.loan.model.LoanValidation;
-import com.ntt.loan.model.LoanValidationReason;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -17,14 +16,17 @@ public class LoanValidationMapper {
 
     // convierte el request DTO al modelo interno
     public LoanValidation toModel(LoanValidationRequest request) {
-        LoanValidation model = new LoanValidation();
-        // copiar directamente los valores
-        model.setMonthlySalary(request.monthlySalary());
-        model.setRequestedAmount(request.requestedAmount());
-        model.setTermMonths(request.termMonths());
-        model.setLastLoanDate(request.lastLoanDate());
-        model.setValidationDate(LocalDate.now()); // marcar cuando se proceso
-        return model;
+        Double monthlyPayment = request.termMonths() > 0 ?
+                request.requestedAmount() / request.termMonths()
+                : 0.0;
+            
+        return LoanValidation.builder()
+                .monthlySalary(request.monthlySalary())
+                .requestedAmount(request.requestedAmount())
+                .termMonths(request.termMonths())
+                .lastLoanDate(request.lastLoanDate())
+                .monthlyPayment(monthlyPayment)
+                .build();
     }
 
     // convierte el modelo interno de vuelta al DTO , uso de programacuoin funcional
