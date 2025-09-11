@@ -5,7 +5,6 @@ import com.ntt.loan.dto.LoanValidationResult;
 import com.ntt.loan.model.LoanValidation;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;

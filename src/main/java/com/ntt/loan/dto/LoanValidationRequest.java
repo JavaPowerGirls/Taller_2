@@ -1,6 +1,6 @@
 package com.ntt.loan.dto;
 
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
 

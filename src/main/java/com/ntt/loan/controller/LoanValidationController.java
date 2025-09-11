@@ -4,7 +4,9 @@ import com.ntt.loan.dto.LoanValidationRequest;
 import com.ntt.loan.dto.LoanValidationResult;
 import com.ntt.loan.service.LoanValidationService;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
 @RestController
@@ -20,7 +22,7 @@ public class LoanValidationController {
     // endpoint principal que recibe el request y valida el prestamo
     @PostMapping("/loan-validations")
     public Mono<LoanValidationResult> validateLoan(@Valid @RequestBody LoanValidationRequest request) {
-        // llamar al servicio - los errores los maneja el GlobalExceptionHandler
+        // llamar al servicio
         return loanValidationService.validateLoan(request);
     }
 }
