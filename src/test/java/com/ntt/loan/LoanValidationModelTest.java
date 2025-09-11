@@ -2,6 +2,7 @@ package com.ntt.loan;
 
 import com.ntt.loan.model.LoanValidation;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -22,122 +23,109 @@ class LoanValidationModelTest {
     }
 
     @Test
-    void hasRecentLoans_WithinThreeMonths_ShouldReturnTrue() {
-        // Arrange
+    @DisplayName("Debe detectar préstamos recientes")
+    void hasRecentLoans_true() {
+        // R1: 2 meses atras cuenta como reciente (regla incluyente)
         LocalDate recentLoanDate = fixedDate.minusMonths(2);
         LoanValidation loan = LoanValidation.builder()
-            .lastLoanDate(recentLoanDate)
-            .build();
+                .lastLoanDate(recentLoanDate)
+                .build();
 
-        // Act
-        boolean result = loan.hasRecentLoans(fixedClock);
-
-        // Assert
-        assertTrue(result);
+        assertTrue(loan.hasRecentLoans(fixedClock));
     }
 
     @Test
-    void hasRecentLoans_MoreThanThreeMonths_ShouldReturnFalse() {
-        // Arrange
-        LocalDate oldLoanDate = fixedDate.minusMonths(3).minusDays(1);
+    @DisplayName("Sin préstamos previos no hay recientes")
+    void hasRecentLoans_null() {
+        // cliente nuevo sin historial de prestamos
         LoanValidation loan = LoanValidation.builder()
-            .lastLoanDate(oldLoanDate)
-            .build();
+                .lastLoanDate(null)
+                .build();
 
-        // Act
-        boolean result = loan.hasRecentLoans(fixedClock);
-
-        // Assert
-        assertFalse(result);
+        assertFalse(loan.hasRecentLoans(fixedClock));
     }
 
     @Test
-    void isValidTerm_ValidRange_ShouldReturnTrue() {
-        // Arrange
+    @DisplayName("Préstamos antiguos no son recientes")
+    void hasRecentLoans_false() {
+        // R1: 4 meses ya pasa los 3 meses limite
+        LocalDate oldLoanDate = fixedDate.minusMonths(4);
         LoanValidation loan = LoanValidation.builder()
-            .termMonths(24)
-            .build();
+                .lastLoanDate(oldLoanDate)
+                .build();
 
-        // Act
-        boolean result = loan.isValidTerm();
-
-        // Assert
-        assertTrue(result);
+        assertFalse(loan.hasRecentLoans(fixedClock));
     }
 
     @Test
-    void isValidTerm_InvalidRange_ShouldReturnFalse() {
-        // Arrange
+    @DisplayName("Plazo válido es aceptado")
+    void isValidTerm_true() {
+        // R2: 12 meses cumple con termMonths ≤ 36 y ≥ 1
         LoanValidation loan = LoanValidation.builder()
-            .termMonths(37)
-            .build();
+                .termMonths(12)
+                .build();
 
-        // Act
-        boolean result = loan.isValidTerm();
-
-        // Assert
-        assertFalse(result);
+        assertTrue(loan.isValidTerm());
     }
 
     @Test
-    void hasPaymentCapacity_UnderFortyPercent_ShouldReturnTrue() {
-        // Arrange
+    @DisplayName("Plazo excesivo es rechazado")
+    void isValidTerm_false() {
+        // R2: 50 meses rompe la regla de maximo 36
         LoanValidation loan = LoanValidation.builder()
-            .monthlyPayment(300.0)  // 30% of 1000
-            .monthlySalary(1000.0)
-            .build();
+                .termMonths(50)
+                .build();
 
-        // Act
-        boolean result = loan.hasPaymentCapacity();
-
-        // Assert
-        assertTrue(result);
+        assertFalse(loan.isValidTerm());
     }
 
     @Test
-    void hasPaymentCapacity_OverFortyPercent_ShouldReturnFalse() {
-        // Arrange
+    @DisplayName("Capacidad de pago suficiente es válida")
+    void hasPaymentCapacity_true() {
+        // R3: 300/1000 = 30% que es menor al 40% limite
         LoanValidation loan = LoanValidation.builder()
-            .monthlyPayment(500.0)  // 50% of 1000
-            .monthlySalary(1000.0)
-            .build();
+                .monthlyPayment(300.0)
+                .monthlySalary(1000.0)
+                .build();
 
-        // Act
-        boolean result = loan.hasPaymentCapacity();
-
-        // Assert
-        assertFalse(result);
+        assertTrue(loan.hasPaymentCapacity());
     }
 
     @Test
-    void hasValidData_ValidData_ShouldReturnTrue() {
-        // Arrange
+    @DisplayName("Capacidad de pago insuficiente es inválida")
+    void hasPaymentCapacity_false() {
+        // R3: 500/1000 = 50% supera el 0.40 * monthlySalary
         LoanValidation loan = LoanValidation.builder()
-            .monthlySalary(2500.0)
-            .requestedAmount(10000.0)
-            .termMonths(12)
-            .build();
+                .monthlyPayment(500.0)
+                .monthlySalary(1000.0)
+                .build();
 
-        // Act
-        boolean result = loan.hasValidData();
-
-        // Assert
-        assertTrue(result);
+        assertFalse(loan.hasPaymentCapacity());
     }
 
     @Test
-    void hasValidData_InvalidData_ShouldReturnFalse() {
-        // Arrange
+    @DisplayName("Datos positivos son válidos")
+    void hasValidData_true() {
+        // R4: monthlySalary > 0, requestedAmount > 0 cumplidos
         LoanValidation loan = LoanValidation.builder()
-            .monthlySalary(-100.0)  // Invalid: negative
-            .requestedAmount(10000.0)
-            .termMonths(12)
-            .build();
+                .monthlySalary(2500.0)
+                .requestedAmount(10000.0)
+                .termMonths(12)
+                .build();
 
-        // Act
-        boolean result = loan.hasValidData();
+        assertTrue(loan.hasValidData());
+    }
 
-        // Assert
-        assertFalse(result);
+    @Test
+    @DisplayName("Datos negativos son inválidos")
+    void hasValidData_false() {
+        // R4: sueldo negativo falla la validacion basica
+        LoanValidation loan = LoanValidation.builder()
+                .monthlySalary(-100.0)
+                .requestedAmount(10000.0)
+                .termMonths(12)
+                .build();
+
+        assertFalse(loan.hasValidData());
     }
 }
