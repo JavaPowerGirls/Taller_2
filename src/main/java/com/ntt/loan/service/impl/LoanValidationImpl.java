@@ -6,68 +6,92 @@ import com.ntt.loan.mapper.LoanValidationMapper;
 import com.ntt.loan.model.LoanValidation;
 import com.ntt.loan.model.LoanValidationReason;
 import com.ntt.loan.service.LoanValidationService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class LoanValidationImpl implements LoanValidationService {
 
     private final LoanValidationMapper mapper;
+    private final Clock clock;
 
-    public LoanValidationImpl(LoanValidationMapper mapper) {
+    public LoanValidationImpl(LoanValidationMapper mapper, Clock clock) {
         this.mapper = mapper;
+        this.clock = clock;
     }
 
     @Override
     public Mono<LoanValidationResult> validateLoan(LoanValidationRequest request) {
+        try {
+            LoanValidationResult result = performValidation(request);
+            return Mono.just(result);
+        } catch (Exception e) {
+            return Mono.error(e);
+        }
+    }
+    
+    private LoanValidationResult performValidation(LoanValidationRequest request) {
+        // crear el modelo para trabajar
+        LoanValidation loanValidation = mapper.toModel(request);
+        
+        // calcular cuanto va a pagar por mes (division simple - @Valid garantiza no nulls)
+        double monthlyPayment = request.requestedAmount() / request.termMonths();
+        loanValidation.setMonthlyPayment(monthlyPayment);
 
-        return Mono.fromCallable(() -> {
+        // aplicar reglas de negocio una por una
+        List<LoanValidationReason> reasons = new ArrayList<>();
+        
+        validateRecentLoans(request).ifPresent(reasons::add);
+        validateTermLimits(request).ifPresent(reasons::add);
+        validatePaymentCapacity(request, monthlyPayment).ifPresent(reasons::add);
+        validateDataIntegrity(request).ifPresent(reasons::add);
 
-            LoanValidation loanValidation = mapper.toModel(request);
-            List<LoanValidationReason> reasons = new ArrayList<>();
-            boolean eligible = true;
+        // determinar elegibilidad basado en si hay razones de rechazo
+        boolean eligible = reasons.isEmpty();
 
-            // calcular pago mensual basico monthlyPayment = requestedAmount / termMonths
-            double monthlyPayment = request.getRequestedAmount() / request.getTermMonths();
-            loanValidation.setMonthlyPayment(monthlyPayment);
+        // setear el resultado final y convertir a DTO
+        loanValidation.setEligible(eligible);
+        loanValidation.setReasons(reasons);
 
-            // R1 - revisar si tiene prestamos recientes en ultimos 3 meses
-            if (request.getLastLoanDate() != null &&
-                    !request.getLastLoanDate().isBefore(LocalDate.now().minusMonths(3))) {
-                eligible = false;
-                reasons.add(LoanValidationReason.HAS_RECENT_LOANS);
-            }
+        return mapper.toDto(loanValidation);
+    }
 
-            // R2 - validar que el plazo este entre 1 y 36 meses termMonths ≤ 36 y termMonths ≥ 1
-            if (request.getTermMonths() < 1 || request.getTermMonths() > 36) {
-                eligible = false;
-                reasons.add(LoanValidationReason.PLAZO_MAXIMO_SUPERADO);
-            }
+    // R1 - validacion de prestamos recientes - > since = today.minusMonths(3) con Clock inyectable para tests.}
+    // El solicitante no debe tener préstamos en los últimos 3 meses (incluyente).
+    private Optional<LoanValidationReason> validateRecentLoans(LoanValidationRequest request) {
+        return Optional.ofNullable(request.lastLoanDate())
+                .filter(date -> !date.isBefore(LocalDate.now(clock).minusMonths(3)))
+                .map(date -> LoanValidationReason.HAS_RECENT_LOANS);
+    }
 
-            // R3 - capacidad de pago no debe exceder 40% del salario ... debe cumplir monthlyPayment ≤ 0.40 * monthlySalary
-            if (request.getRequestedAmount() / request.getTermMonths() > request.getMonthlySalary() * 0.40) {
-                eligible = false;
-                reasons.add(LoanValidationReason.CAPACIDAD_INSUFICIENTE);
-            }
+    // R2 - validacion de limites de plazo -> termMonths ≤ 36 y termMonths ≥ 1.
+    private Optional<LoanValidationReason> validateTermLimits(LoanValidationRequest request) {
+        if (request.termMonths() < 1 || request.termMonths() > 36) {
+            return Optional.of(LoanValidationReason.PLAZO_MAXIMO_SUPERADO);
+        }
+        return Optional.empty();
+    }
 
-            // R4 - verificar que los datos sean validos... monthlySalary > 0, requestedAmount > 0.
-            if (request.getMonthlySalary() <= 0 || request.getRequestedAmount() <= 0) {
-                eligible = false;
-                reasons.add(LoanValidationReason.DATOS_INVALIDOS);
-            }
+    // R3 - validacion de capacidad de pago - > debe cumplir monthlyPayment ≤ 0.40 * monthlySalary.
+    private Optional<LoanValidationReason> validatePaymentCapacity(LoanValidationRequest request, double monthlyPayment) {
+        if (monthlyPayment > request.monthlySalary() * 0.40) {
+            return Optional.of(LoanValidationReason.CAPACIDAD_INSUFICIENTE);
+        }
+        return Optional.empty();
+    }
 
-            // guardar resultado final
-            loanValidation.setEligible(eligible);
-            loanValidation.setReasons(reasons);
-
-            return mapper.toDto(loanValidation); //convertir
-        });
+    // R4 - validacion de integridad de datos - >  monthlySalary > 0, requestedAmount > 0.
+    private Optional<LoanValidationReason> validateDataIntegrity(LoanValidationRequest request) {
+        if (request.monthlySalary() <= 0 || request.requestedAmount() <= 0) {
+            return Optional.of(LoanValidationReason.DATOS_INVALIDOS);
+        }
+        return Optional.empty();
     }
 }
