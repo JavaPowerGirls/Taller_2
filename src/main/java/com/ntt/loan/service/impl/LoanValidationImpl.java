@@ -1,20 +1,19 @@
 package com.ntt.loan.service.impl;
 
+import java.time.Clock;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
 import com.ntt.loan.dto.LoanValidationRequest;
 import com.ntt.loan.dto.LoanValidationResult;
 import com.ntt.loan.mapper.LoanValidationMapper;
 import com.ntt.loan.model.LoanValidation;
 import com.ntt.loan.model.LoanValidationReason;
 import com.ntt.loan.service.LoanValidationService;
-import org.springframework.stereotype.Service;
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
-import java.time.Clock;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import reactor.core.publisher.Mono;
 
 @Service
 public class LoanValidationImpl implements LoanValidationService {
@@ -29,14 +28,11 @@ public class LoanValidationImpl implements LoanValidationService {
 
     @Override
     public Mono<LoanValidationResult> validateLoan(LoanValidationRequest request) {
-        try {
-            LoanValidationResult result = performValidation(request);
-            return Mono.just(result);
-        } catch (Exception e) {
-            return Mono.error(e);
-        }
+        return Mono.fromSupplier(() -> {
+            return performValidation(request);
+        });
     }
-
+    
     private LoanValidationResult performValidation(LoanValidationRequest request) {
         // crear el modelo usando builder con los datos del request
         LoanValidation loanValidation =  mapper.toModel(request);
